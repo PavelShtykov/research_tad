@@ -1,0 +1,11 @@
+# Игнорируем файлы
+*.log
+*.tar
+*.tar.gz
+
+# Игнорируем папки, где бы они ни находились
+slim_pajama_*/
+lightning_logs/
+base_microllama_*/
+wandb/
+__pycache__/

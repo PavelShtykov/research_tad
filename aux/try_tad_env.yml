@@ -1,0 +1,10 @@
+name: try-tad
+channels:
+  - conda-forge
+  - nvidia
+dependencies:
+  - python=3.11
+  - cuda=12.2.2
+  - pip
+  - pip:
+    - -r requirements.txt 
