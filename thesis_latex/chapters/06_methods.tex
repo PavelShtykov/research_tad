@@ -1,10 +1,116 @@
 \chapter{Methodology}
-This section describes in detail the theoretical approaches, methods, and algorithms used in the research, their properties, and expected results.
 
-\section{Method 1}
+\section{Analyzing Probability Distributions and Embedding Distances}
 
-\section{Method 2}
+Our approach to analyzing the relationship between probability distributions and embedding distances involves several key methodological steps:
 
-\section{Method 3}
+\subsection{Data Processing Pipeline}
 
-\section{Method 4}
+We implement a processing pipeline that extracts the necessary information from transformer models during inference:
+
+1. For each input sequence, we capture the final hidden states from the last transformer layer.
+2. We compute the full probability distribution over the vocabulary using the language modeling head.
+3. We calculate the Euclidean distances between each hidden state and all token embeddings in the vocabulary.
+4. We store these values in an efficient format that allows for subsequent analysis.
+
+\subsection{Correlation Analysis Framework}
+
+To quantify the relationship between probabilities and distances, we develop a correlation analysis framework that:
+
+1. Ranks tokens according to both their probabilities and their proximity (negative distance) to the hidden state.
+2. Computes rank correlation metrics such as Spearman's rank correlation coefficient.
+3. Calculates the Normalized Discounted Cumulative Gain (NDCG) to measure the agreement between probability-based and distance-based rankings, with special attention to the top-k tokens.
+
+\subsection{Statistical Validation}
+
+To ensure the robustness of our findings, we employ statistical validation techniques:
+
+1. Bootstrap sampling to estimate confidence intervals for correlation metrics.
+2. Permutation tests to assess the statistical significance of observed correlations.
+3. Cross-validation across different text domains to verify the consistency of the relationship.
+
+\section{Gaussian Kernel Language Modeling}
+
+Our methodology for developing transformer models with Gaussian kernel language modeling heads involves several innovative approaches:
+
+\subsection{Architecture Modifications}
+
+We modify the standard transformer architecture by:
+
+1. Preserving the transformer encoder stack up to the final hidden states.
+2. Replacing the linear language modeling head with a distance-based Gaussian kernel module.
+3. Implementing efficient computation of distances between hidden states and token embeddings.
+4. Adding learnable parameters that control the width of the Gaussian kernel for each token.
+
+\subsection{Kernel Variants}
+
+We explore three variants of the kernel-based approach:
+
+1. **Pure Gaussian Kernel**: Using learnable $\sigma$ parameters for each token to control the width of the Gaussian kernel.
+   \begin{equation}
+       \text{score}(v, \mathbf{h}) = \exp\left(-\frac{d(\mathbf{h}, \mathbf{e}_v)^2}{2\sigma_v^2}\right)
+   \end{equation}
+
+2. **Context-Dependent Scaling**: Dynamically adjusting the scaling of distances based on the hidden state.
+   \begin{equation}
+       \text{score}(v, \mathbf{h}) = \exp(-d(\mathbf{h}, \mathbf{e}_v) \cdot f(\mathbf{h}))
+   \end{equation}
+   where $f(\mathbf{h})$ is a small neural network that outputs a positive scalar.
+
+3. **Hybrid Approach**: Combining token-specific and context-dependent scaling.
+   \begin{equation}
+       \text{score}(v, \mathbf{h}) = \exp(-d(\mathbf{h}, \mathbf{e}_v) \cdot \sigma_v \cdot f(\mathbf{h}))
+   \end{equation}
+
+\subsection{Training Methodology}
+
+Our training methodology includes:
+
+1. Initialization strategies for the learnable $\sigma$ parameters, including uniform initialization and token frequency-based initialization.
+2. Specialized learning rate schedules for the kernel parameters versus the transformer parameters.
+3. Regularization techniques to prevent overfitting of the kernel parameters.
+4. Curriculum learning approaches that gradually increase the complexity of the training data.
+
+\subsection{Evaluation Protocol}
+
+We establish a comprehensive evaluation protocol that assesses:
+
+1. Language modeling performance using perplexity and token prediction accuracy.
+2. Parameter efficiency compared to standard transformer models.
+3. Interpretability of the learned kernel parameters through visualization and analysis.
+4. Generalization capabilities to out-of-distribution text.
+
+\section{Inertial Movement in Embedding Space}
+
+\textcolor{red}{TODO: This section will describe the methodology for developing and validating the theoretical framework that interprets transformer operation as inertial movement in embedding space.}
+
+\section{Implementation Framework}
+
+\subsection{Software Architecture}
+
+Our implementation is structured around a modular framework that facilitates:
+
+1. Easy modification of transformer architectures through a component-based design.
+2. Efficient computation of distances and kernels using optimized tensor operations.
+3. Comprehensive logging and analysis of model behaviors during training and inference.
+4. Visualization tools for exploring the embedding space and model predictions.
+
+\subsection{Optimization Techniques}
+
+To handle the computational challenges of our approach, we implement several optimization techniques:
+
+1. Approximate k-nearest neighbors algorithms to reduce the computational cost of distance calculations.
+2. Caching mechanisms for token embeddings to avoid redundant computations.
+3. Mixed-precision training to reduce memory requirements and increase throughput.
+4. Parallelization strategies for distributing computations across multiple GPUs when necessary.
+
+\subsection{Reproducibility Framework}
+
+We establish a reproducibility framework that includes:
+
+1. Deterministic initialization through fixed random seeds.
+2. Comprehensive configuration management using hierarchical configuration files.
+3. Automated experiment tracking with metadata about hyperparameters and results.
+4. Version control for code, configurations, and key results.
+
+This methodological framework enables us to systematically investigate the relationship between transformer hidden states and token embeddings, develop and evaluate alternative formulations of language modeling, and explore the geometric properties of transformer representations in embedding space.

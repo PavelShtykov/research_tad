@@ -1,47 +1,82 @@
 \chapter{Problem statement}
 
-In this section the main notations, definitions and all auxiliary facts should be introduced.
+\section{Notation and Preliminaries}
 
-The overall purpose of the study should be clearly stated here formally.
-It is what you hope to achieve in the project - it should be clearly and concisely defined.
+\subsection{Transformer Language Models}
 
-Math formulas can be written like $f(x) = x^2$ or inline
+We consider transformer-based language models as defined by \cite{vaswani2017attention}. Let $\mathcal{V}$ be a vocabulary of tokens, and let $\mathbf{E} \in \mathbb{R}^{|\mathcal{V}| \times d}$ be the embedding matrix, where $d$ is the embedding dimension. For a sequence of tokens $\mathbf{x} = (x_1, x_2, \ldots, x_n)$ with $x_i \in \mathcal{V}$, the transformer model processes the sequence through $L$ layers, producing hidden states $\mathbf{h}_i^l \in \mathbb{R}^d$ for each token $i$ at each layer $l$.
+
+The final hidden state for token $i$ is denoted as $\mathbf{h}_i^L$. The language modeling head, typically a linear layer, transforms this hidden state into logits over the vocabulary:
+
 \begin{equation}
-    f(x) = x^2
-    \label{eq::quad_func}
+    \mathbf{z}_i = \mathbf{W} \mathbf{h}_i^L + \mathbf{b}
+    \label{eq::lm_head}
 \end{equation}
-or inline without numbering
-\begin{equation*}
-    f(x) = x^2.
-\end{equation*}
-The reference to the formula can be written as "In~\eqref{eq::quad_func}".
 
-If you need multiple lines formula, \texttt{split} environment can help
-\begin{equation*}
-    \begin{split}
-        & x = 0,\\
-        & x = 10.
-    \end{split}
-\end{equation*}
+where $\mathbf{W} \in \mathbb{R}^{|\mathcal{V}| \times d}$ and $\mathbf{b} \in \mathbb{R}^{|\mathcal{V}|}$ are the weight matrix and bias vector of the language modeling head, respectively. The probability distribution over the next token is then computed using the softmax function:
 
-If you need to describe some cases, then
-\begin{equation*}
-    f(x) = 
-    \begin{cases}
-      x^2, & x \leq 0,\\
-      x, & x > 0.
-    \end{cases}
-\end{equation*}
+\begin{equation}
+    P(x_{i+1} = v | x_1, \ldots, x_i) = \frac{\exp(z_{i,v})}{\sum_{v' \in \mathcal{V}} \exp(z_{i,v'})}
+    \label{eq::softmax}
+\end{equation}
 
-\begin{Def}
-  Here is the definition.
-\end{Def}
+\subsection{Embedding Space}
 
-\begin{Th}
-  Here is the claim of theorem.
-\end{Th}
+We define the embedding space as the $d$-dimensional vector space in which token embeddings and hidden states reside. For any token $v \in \mathcal{V}$, its embedding is denoted as $\mathbf{e}_v \in \mathbb{R}^d$, which corresponds to the $v$-th row of the embedding matrix $\mathbf{E}$.
 
-\begin{Lem}
-  Here is the claim of lemma.
-\end{Lem}
+The distance between two vectors $\mathbf{a}$ and $\mathbf{b}$ in the embedding space is measured using the Euclidean distance:
 
+\begin{equation}
+    d(\mathbf{a}, \mathbf{b}) = \|\mathbf{a} - \mathbf{b}\|_2 = \sqrt{\sum_{j=1}^d (a_j - b_j)^2}
+    \label{eq::euclidean}
+\end{equation}
+
+\section{Research Problems}
+
+This thesis addresses the following research problems:
+
+\subsection{Relationship Between Probability Distributions and Embedding Distances}
+
+We investigate the relationship between the probability distribution produced by the language modeling head and the distances between the final hidden state and token embeddings in the vocabulary. Specifically, we examine whether there exists a correlation between the probability assigned to a token and its proximity to the final hidden state in the embedding space.
+
+For a given hidden state $\mathbf{h}$ and a token $v \in \mathcal{V}$, we study the relationship between $P(v|\mathbf{h})$ and $d(\mathbf{h}, \mathbf{e}_v)$, where $P(v|\mathbf{h})$ is the probability assigned to token $v$ by the language model given hidden state $\mathbf{h}$, and $d(\mathbf{h}, \mathbf{e}_v)$ is the Euclidean distance between $\mathbf{h}$ and the embedding of token $v$.
+
+We hypothesize that there exists an inverse relationship between these quantities, such that tokens with higher probabilities tend to have smaller distances to the hidden state in the embedding space. To quantify this relationship, we use the Normalized Discounted Cumulative Gain (NDCG) metric:
+
+\begin{equation}
+    \text{NDCG} = \frac{\text{DCG}}{\text{IDCG}}
+    \label{eq::ndcg}
+\end{equation}
+
+where DCG (Discounted Cumulative Gain) is computed based on the ranking of tokens according to their probabilities and inverse distances, and IDCG is the ideal DCG.
+
+\subsection{Gaussian Kernel Language Modeling}
+
+We propose an alternative formulation of the language modeling objective that replaces the traditional linear language modeling head with a learnable Gaussian kernel over k-nearest neighbors to token embeddings. The probability of the next token is computed as:
+
+\begin{equation}
+    P(x_{i+1} = v | x_1, \ldots, x_i) = \frac{\exp\left(-\frac{d(\mathbf{h}_i^L, \mathbf{e}_v)^2}{2\sigma_v^2}\right)}{\sum_{v' \in \mathcal{V}} \exp\left(-\frac{d(\mathbf{h}_i^L, \mathbf{e}_{v'})^2}{2\sigma_{v'}^2}\right)}
+    \label{eq::gaussian_kernel}
+\end{equation}
+
+where $\sigma_v$ is a learnable parameter that controls the width of the Gaussian kernel for token $v$. This formulation makes the connection between hidden states and token embeddings more explicit and potentially more interpretable.
+
+\subsection{Inertial Movement in Embedding Space}
+
+TODO: This section will be filled in later with a description of the theoretical framework that interprets transformer operation as inertial movement in embedding space.
+
+\section{Research Objectives}
+
+Based on the research problems defined above, this thesis aims to:
+
+\begin{enumerate}
+    \item Empirically verify the relationship between probability distributions from the language modeling head and distances between hidden states and token embeddings in the vocabulary.
+    
+    \item Develop and evaluate a transformer model that uses a learnable Gaussian kernel over k-nearest neighbors to token embeddings instead of a traditional linear language modeling head.
+    
+    \item Formulate and validate a theoretical framework that interprets transformer operation as inertial movement in embedding space.
+    
+    \item Derive insights from these investigations that can guide the development of more interpretable and efficient transformer architectures.
+\end{enumerate}
+
+Through these objectives, we seek to contribute to a deeper understanding of how transformer language models process and represent information, with a particular focus on the geometric properties of their internal representations in embedding space.

@@ -6,25 +6,47 @@
 %% prompt when you run the file main.tex through LaTeX.
 \chapter{Introduction}
 
-This section is about
-\begin{enumerate}
-    \item general topic of the research
-    \item main ideas of the existing methods
-    \item analysis pros and cons of the current state-of-the-art methods
-    \item discussion in this section has to be supported by a comprehensive literature review  
-    \item the citation of the papers, books, etc in the thesis should be in the following format: ``We have implemented the proposed approach in PyTorch framework~\cite{paszke2019pytorch}.'' or ``The great introduction to convex optimization is presented in~\cite{boyd2004convex}''.
-\end{enumerate}
+% This section is about
+% \begin{enumerate}
+%     \item general topic of the research
+%     \item main ideas of the existing methods
+%     \item analysis pros and cons of the current state-of-the-art methods
+%     \item discussion in this section has to be supported by a comprehensive literature review  
+%     \item the citation of the papers, books, etc in the thesis should be in the following format: ``We have implemented the proposed approach in PyTorch framework~\cite{paszke2019pytorch}.'' or ``The great introduction to convex optimization is presented in~\cite{boyd2004convex}''.
+% \end{enumerate}
 
-The draft for layout of this section is presented below.
+% The draft for layout of this section is presented below.
 
 \paragraph{Relevance.}
+Transformer-based language models have revolutionized natural language processing, yet they largely remain "black boxes" with limited interpretability. Understanding these models is crucial for reliable development, bias mitigation, and architectural innovation. As transformers become integrated into critical applications, interpretability becomes both a technical challenge and ethical necessity. This thesis investigates how transformer models process information, focusing on the relationship between internal representations and output probabilities.
+
 
 \paragraph{Main purpose of the research.}
+This research aims to develop interpretative techniques for transformer language models that illuminate their internal mechanisms. Specifically, we investigate:
+\begin{itemize}
+    \item The relationship between probability distributions from the language modeling head and geometric properties of internal representations
+    \item Alternative formulations of the language modeling objective that enhance interpretability
+    \item A theoretical framework conceptualizing transformer operation as inertial movement in embedding space
+    \item Experimental validation of these interpretative approaches
+\end{itemize}
 
 \paragraph{Scientific novelty.}
-State-of-the-art component of your research project.
-
-
-
+This research contributes novel elements to transformer interpretability:
+\begin{itemize}
+    \item Analysis of geometric relationships between final hidden states and vocabulary token embeddings
+    \item A training approach replacing the traditional linear language modeling head with a learnable Gaussian kernel over k-nearest neighbors
+    \item A theoretical framework interpreting transformer operation as inertial movement in embedding space
+    \item Empirical validation through targeted experiments isolating specific aspects of transformer behavior
+\end{itemize}
+Unlike previous work focusing on isolated components, this research examines the holistic relationship between internal representations and model outputs.
 
 \paragraph{Statements for defense.}
+\begin{enumerate}
+    \item Probability distributions from the language modeling head correlate strongly with distances between final hidden states and token embeddings, suggesting transformers learn to navigate embedding space.
+    
+    \item Transformers trained with Gaussian kernels over k-nearest neighbors can achieve comparable performance while providing more interpretable representations.
+    
+    \item Transformer operation can be conceptualized as inertial movement in embedding space, with attention mechanisms and feed-forward networks acting as guiding forces.
+    
+    \item The proposed interpretative techniques provide actionable insights for developing more efficient transformer architectures.
+\end{enumerate}

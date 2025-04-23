@@ -1,10 +1,37 @@
 \chapter{Literature review}
 
-The overview of the deep learning basics and their potential impact is presented in~\cite{lecun2015deep}.
+\section{Transformer Models and Interpretability}
+
+Transformer-based language models have revolutionized natural language processing~\cite{vaswani2017attention}, yet they largely remain "black boxes" with limited interpretability. The field of transformer interpretability has grown significantly, with approaches like VisBERT by Aken et al.~\cite{aken2020visbert} providing visualization techniques for hidden states that offer insights into the model's internal processing.
+
+\section{Geometric Interpretations of Transformer Representations}
+
+A promising direction involves analyzing transformers through geometry in embedding space. Dar et al.~\cite{dar2022analyzing} present a framework where transformer parameters are interpreted by projecting them into embedding space, demonstrating that both pretrained and fine-tuned models can be understood through this lens.
+
+Singh~\cite{singh2023analyzing} extends this by framing transformer dynamics as movement through embedding space, establishing a theory where intelligent behaviors map to paths in embedding space and context vectors are composed by aggregating token features. This aligns with our thesis's focus on interpreting transformers as inertial movement in embedding space.
+
+The geometric properties of transformer hidden representations have also been explored by Valeriani et al.~\cite{valeriani2023geometry}, providing insights into information encoding across transformer layers.
+
+\section{Alternative Formulations of Language Modeling}
+
+Traditional transformers use a linear language modeling head, but alternative formulations enhance interpretability and performance. Geva et al.~\cite{geva2022transformer} showed that feed-forward networks in transformers function as key-value memories related to embedding space, suggesting a connection between internal representations and vocabulary token embeddings.
+
+The relationship between k-nearest neighbors and transformer attention has been explored by Haris~\cite{haris2024knn}, who provides a theoretical framework for k-NN attention using Gaussian sampling for efficient approximation. Kernelized transformer variants have been investigated by Chowdhury et al.~\cite{chowdhury2021learning} and Simpson et al.~\cite{simpson2021kernel}, exploring Gaussian kernels and their integration with transformer architectures.
+
+\section{Embedding Space Dynamics and Token Relationships}
+
+The relationship between transformer hidden states and token embeddings has been studied from various angles. Song and Zhong~\cite{song2023uncovering} investigate hidden geometry in transformers by disentangling position and context. The concept of distances between hidden states and token embeddings, central to our research, has been touched upon by Aken et al.~\cite{aken2020visbert} and Dar et al.~\cite{dar2022analyzing}, providing a foundation for our investigation into the relationship between probability distributions and embedding distances.
+
+\section{Research Gaps and Opportunities}
+
+Despite these advances, several gaps remain:
+
 \begin{enumerate}
-    \item Identifying the area of the research.
+    \item The specific connection between probability distributions from the language modeling head and distances between hidden states and token embeddings remains underexplored.
     
-    \item Identifying gaps in the current knowledge, technological and scientific barriers.
+    \item Alternative formulations using learnable Gaussian kernels over k-nearest neighbors to token embeddings have not been thoroughly investigated for their impact on interpretability.
     
-    \item Specifying the area of the research in light of the project.
+    \item The conceptualization of transformer operation as inertial movement in embedding space has not been fully developed into a comprehensive framework with empirical validation.
 \end{enumerate}
+
+Our research addresses these gaps by developing a more complete understanding of transformer operations in embedding space, focusing on the relationship between internal representations and output probabilities.
