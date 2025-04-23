@@ -9,3 +9,5 @@ lightning_logs/
 base_microllama_*/
 wandb/
 __pycache__/
+
+.DS_Store

@@ -1,0 +1,47 @@
+\chapter{Problem statement}
+
+In this section the main notations, definitions and all auxiliary facts should be introduced.
+
+The overall purpose of the study should be clearly stated here formally.
+It is what you hope to achieve in the project - it should be clearly and concisely defined.
+
+Math formulas can be written like $f(x) = x^2$ or inline
+\begin{equation}
+    f(x) = x^2
+    \label{eq::quad_func}
+\end{equation}
+or inline without numbering
+\begin{equation*}
+    f(x) = x^2.
+\end{equation*}
+The reference to the formula can be written as "In~\eqref{eq::quad_func}".
+
+If you need multiple lines formula, \texttt{split} environment can help
+\begin{equation*}
+    \begin{split}
+        & x = 0,\\
+        & x = 10.
+    \end{split}
+\end{equation*}
+
+If you need to describe some cases, then
+\begin{equation*}
+    f(x) = 
+    \begin{cases}
+      x^2, & x \leq 0,\\
+      x, & x > 0.
+    \end{cases}
+\end{equation*}
+
+\begin{Def}
+  Here is the definition.
+\end{Def}
+
+\begin{Th}
+  Here is the claim of theorem.
+\end{Th}
+
+\begin{Lem}
+  Here is the claim of lemma.
+\end{Lem}
+

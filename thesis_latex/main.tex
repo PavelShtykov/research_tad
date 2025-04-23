@@ -1,0 +1,34 @@
+\documentclass[a4paper,12pt]{skthesis}
+\usepackage{lgrind}
+\usepackage{cmap}
+%\usepackage[T2A]{fontenc}
+\usepackage{lipsum}
+
+% \newcommand{\gfcb}[1]{%
+%     \fcolorbox{white}{gray!10!}{\quad\strut #1\quad}
+%     } % gfcb := gray fcolorbox
+% \newcommand{\cop}[1]{%
+%     \texttt{\detokenize{#1}} 
+%     } % cop := code output
+\usepackage{csquotes} 
+\usepackage{hyperref}
+\usepackage{nameref}
+
+\setcounter{secnumdepth}{1}
+
+\begin{document}
+\include{chapters/cover} % Your title pages, abstract
+\include{chapters/contents} % Probably you don't need to change it
+\include{chapters/01_intro}
+\include{chapters/02_author_contrib}
+% \include{chapters/03_publications} % optional
+\include{chapters/04_literature}
+\include{chapters/05_problem_statement}
+\include{chapters/06_methods}
+\include{chapters/07_numerical_experiments}
+\include{chapters/08_conclusion}
+\include{chapters/09_innovations} % optional
+\include{chapters/biblio}
+\include{chapters/10_appendix} % optional
+\end{document}
+
