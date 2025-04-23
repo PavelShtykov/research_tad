@@ -13,7 +13,7 @@ from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 import datetime
 
-from aux.utils import provide_pajama
+from aux.utils import provide_pajama, get_git_info
 from aux.arch_mod import Mods, provide_litllm_with_mod
 
 
@@ -92,7 +92,16 @@ wandb_logger = WandbLogger(
     project=f'base_microllama_64m',
     version=f'v_{mods_str}_{TARGET_TRAIN_TOKENS // 10**6}Mtok_{MAX_STEPS}steps_{GLOBAL_BATCH}gbs',
     # log_model=False,
-    )
+    config={
+        'micro_batch': MICRO_BATCH,
+        'accumulated_batches': ACCUMULATED_BATCHES,
+        'global_batch': GLOBAL_BATCH,
+        'target_tokens': TARGET_TRAIN_TOKENS,
+        'max_steps': MAX_STEPS,
+        'mods': [mod.name for mod in MODS_LIST],
+        'git': get_git_info()
+    }
+)
 wandb_logger.watch(lit_llm)
 
 callbacks = [

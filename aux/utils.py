@@ -5,9 +5,27 @@ import logging
 from typing import Callable, List, Tuple, Dict, Any, Optional
 import torch
 from datasets import load_dataset, IterableDataset
+import git
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+def get_git_info() -> Dict[str, str]:
+    try:
+        repo = git.Repo(search_parent_directories=True)
+        git_hash = repo.head.object.hexsha
+        git_branch = repo.active_branch.name
+        return {
+            'git_hash': git_hash,
+            'git_branch': git_branch
+        }
+    except Exception as e:
+        logger.warning(f"Не удалось получить Git информацию: {e}")
+        return {
+            'git_hash': 'unknown',
+            'git_branch': 'unknown'
+        }
 
 
 def wait_for_process_to_finish(pid: int):
