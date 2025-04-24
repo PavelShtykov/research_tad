@@ -1,116 +1,168 @@
 \chapter{Methodology}
 
-\section{Analyzing Probability Distributions and Embedding Distances}
+\section{Relationship Between Hidden State-Token Embedding Distances and LM Head Probability Distributions}
 
-Our approach to analyzing the relationship between probability distributions and embedding distances involves several key methodological steps:
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/knn_head.jpg}
+    \caption{Conceptual illustration of the KNN-based approach to token prediction, where the next token is selected based on proximity in the embedding space rather than through a traditional linear projection}
+    \label{fig:knn_head}
+\end{figure}
 
-\subsection{Data Processing Pipeline}
+To validate our interpretation of transformer operation as movement in token embedding space, we propose the following hypothesis: when positioned at the final hidden state, the transformer decides which token to predict next (which token to move to) based on proximity in the embedding space. While this decision is traditionally made using the LM Head, in our trajectory-based interpretation, the predicted token should simply be the one whose embedding is closest to the current hidden state position.
 
-We implement a processing pipeline that extracts the necessary information from transformer models during inference:
+\subsection{Hypothesis Validation on Pre-trained Transformers}
 
-1. For each input sequence, we capture the final hidden states from the last transformer layer.
-2. We compute the full probability distribution over the vocabulary using the language modeling head.
-3. We calculate the Euclidean distances between each hidden state and all token embeddings in the vocabulary.
-4. We store these values in an efficient format that allows for subsequent analysis.
+We begin by examining pre-trained transformer models to assess how well distances in embedding space reflect probability distributions. This analysis allows us to determine whether the geometric properties of the embedding space align with the model's predictive behavior without modifying the architecture.
 
-\subsection{Correlation Analysis Framework}
+To compare distances with probabilities, we need to invert the distances so that tokens with embeddings closer to the hidden state receive higher scores. We explore two simple distance inversion methods:
 
-To quantify the relationship between probabilities and distances, we develop a correlation analysis framework that:
+\begin{equation}
+    \text{score}_1(v, \mathbf{h}) = \frac{1}{d(\mathbf{h}, \mathbf{e}_v)}
+    \label{eq::inverse_distance}
+\end{equation}
 
-1. Ranks tokens according to both their probabilities and their proximity (negative distance) to the hidden state.
-2. Computes rank correlation metrics such as Spearman's rank correlation coefficient.
-3. Calculates the Normalized Discounted Cumulative Gain (NDCG) to measure the agreement between probability-based and distance-based rankings, with special attention to the top-k tokens.
+\begin{equation}
+    \text{score}_2(v, \mathbf{h}) = \text{softmax}\left(\frac{1}{d(\mathbf{h}, \mathbf{e}_v)}\right) = \frac{\exp\left(\frac{1}{d(\mathbf{h}, \mathbf{e}_v)}\right)}{\sum_{v' \in \mathcal{V}} \exp\left(\frac{1}{d(\mathbf{h}, \mathbf{e}_{v'})}\right)}
+    \label{eq::softmax_inverse_distance}
+\end{equation}
 
-\subsection{Statistical Validation}
+After computing these inverted distances, we measure how well they align with the probability distributions produced by the LM Head. To evaluate the ranking capability of the inverted distances, we use the Normalized Discounted Cumulative Gain (NDCG) metric:
 
-To ensure the robustness of our findings, we employ statistical validation techniques:
+\begin{equation}
+    \text{NDCG@k} = \frac{\text{DCG@k}}{\text{IDCG@k}}
+    \label{eq::ndcg_metric}
+\end{equation}
 
-1. Bootstrap sampling to estimate confidence intervals for correlation metrics.
-2. Permutation tests to assess the statistical significance of observed correlations.
-3. Cross-validation across different text domains to verify the consistency of the relationship.
+where:
 
-\section{Gaussian Kernel Language Modeling}
+\begin{equation}
+    \text{DCG@k} = \sum_{i=1}^{k} \frac{2^{\text{rel}_i} - 1}{\log_2(i+1)}
+    \label{eq::dcg}
+\end{equation}
 
-Our methodology for developing transformer models with Gaussian kernel language modeling heads involves several innovative approaches:
+\begin{equation}
+    \text{IDCG@k} = \sum_{i=1}^{k} \frac{2^{\text{rel}_i^*} - 1}{\log_2(i+1)}
+    \label{eq::idcg}
+\end{equation}
 
-\subsection{Architecture Modifications}
+Here, $\text{rel}_i$ is the relevance score (probability assigned by the LM Head) of the token at position $i$ in the ranking produced by the inverted distances, and $\text{rel}_i^*$ is the relevance score of the token at position $i$ in the ideal ranking (sorted by the LM Head probabilities).
 
-We modify the standard transformer architecture by:
+While NDCG captures the ranking alignment, it doesn't account for the specific probability distribution. To measure the similarity between the probability distributions derived from inverted distances and those from the LM Head, we compute the Jensen-Shannon divergence:
 
-1. Preserving the transformer encoder stack up to the final hidden states.
-2. Replacing the linear language modeling head with a distance-based Gaussian kernel module.
-3. Implementing efficient computation of distances between hidden states and token embeddings.
-4. Adding learnable parameters that control the width of the Gaussian kernel for each token.
+\begin{equation}
+    \text{JSD}(P \parallel Q) = \frac{1}{2} \text{KL}(P \parallel M) + \frac{1}{2} \text{KL}(Q \parallel M)
+    \label{eq::jsd}
+\end{equation}
 
-\subsection{Kernel Variants}
+where $M = \frac{1}{2}(P + Q)$ and $\text{KL}$ is the Kullback-Leibler divergence:
 
-We explore three variants of the kernel-based approach:
+\begin{equation}
+    \text{KL}(P \parallel Q) = \sum_{i} P(i) \log\frac{P(i)}{Q(i)}
+    \label{eq::kl}
+\end{equation}
 
-1. **Pure Gaussian Kernel**: Using learnable $\sigma$ parameters for each token to control the width of the Gaussian kernel.
-   \begin{equation}
-       \text{score}(v, \mathbf{h}) = \exp\left(-\frac{d(\mathbf{h}, \mathbf{e}_v)^2}{2\sigma_v^2}\right)
-   \end{equation}
+This comprehensive evaluation allows us to determine both how well the inverted distances preserve the ranking of tokens and how closely they match the actual probability distributions produced by the LM Head.
 
-2. **Context-Dependent Scaling**: Dynamically adjusting the scaling of distances based on the hidden state.
-   \begin{equation}
-       \text{score}(v, \mathbf{h}) = \exp(-d(\mathbf{h}, \mathbf{e}_v) \cdot f(\mathbf{h}))
-   \end{equation}
-   where $f(\mathbf{h})$ is a small neural network that outputs a positive scalar.
+\subsection{Training Transformers with KNN Head Instead of LM Head}
 
-3. **Hybrid Approach**: Combining token-specific and context-dependent scaling.
-   \begin{equation}
-       \text{score}(v, \mathbf{h}) = \exp(-d(\mathbf{h}, \mathbf{e}_v) \cdot \sigma_v \cdot f(\mathbf{h}))
-   \end{equation}
+Building on our analysis of pre-trained models, we propose training transformer models from scratch using a KNN-based head instead of the traditional linear LM Head. This KNN Head inverts distances in embedding space and uses them as logits for token prediction.
 
-\subsection{Training Methodology}
+For computational efficiency, we use the negative distance rather than the reciprocal:
 
-Our training methodology includes:
+\begin{equation}
+    \text{logit}(v, \mathbf{h}) = -d(\mathbf{h}, \mathbf{e}_v)
+    \label{eq::neg_distance}
+\end{equation}
 
-1. Initialization strategies for the learnable $\sigma$ parameters, including uniform initialization and token frequency-based initialization.
-2. Specialized learning rate schedules for the kernel parameters versus the transformer parameters.
-3. Regularization techniques to prevent overfitting of the kernel parameters.
-4. Curriculum learning approaches that gradually increase the complexity of the training data.
+To enhance the model's learning capacity, we introduce learnable parameters in several variants:
 
-\subsection{Evaluation Protocol}
+\begin{equation}
+    \text{logit}_{\sigma}(v, \mathbf{h}) = -d(\mathbf{h}, \mathbf{e}_v) \cdot \sigma_v
+    \label{eq::sigma_scaling}
+\end{equation}
 
-We establish a comprehensive evaluation protocol that assesses:
+where $\sigma_v$ is a learnable parameter for each token in the vocabulary, controlling the scaling of distances for that token.
 
-1. Language modeling performance using perplexity and token prediction accuracy.
-2. Parameter efficiency compared to standard transformer models.
-3. Interpretability of the learned kernel parameters through visualization and analysis.
-4. Generalization capabilities to out-of-distribution text.
+\begin{equation}
+    \text{logit}_{\text{linear}}(v, \mathbf{h}) = -d(\mathbf{h}, \mathbf{e}_v) \cdot f(\mathbf{h})
+    \label{eq::linear_scaling}
+\end{equation}
 
-\section{Inertial Movement in Embedding Space}
+where $f(\mathbf{h}) = \mathbf{w}^T\mathbf{h} + b$ is a linear function that maps the hidden state to a scalar, implemented as a single-output linear layer: $\text{Linear}(d_{\text{hidden}}, 1)$.
 
-\textcolor{red}{TODO: This section will describe the methodology for developing and validating the theoretical framework that interprets transformer operation as inertial movement in embedding space.}
+These approaches can be combined to create a hybrid scaling method:
 
-\section{Implementation Framework}
+\begin{equation}
+    \text{logit}_{\text{hybrid}}(v, \mathbf{h}) = -d(\mathbf{h}, \mathbf{e}_v) \cdot \sigma_v \cdot f(\mathbf{h})
+    \label{eq::hybrid_scaling}
+\end{equation}
 
-\subsection{Software Architecture}
+Even with both scaling methods combined, the number of parameters is significantly reduced compared to the standard LM Head. Let's quantify this difference:
 
-Our implementation is structured around a modular framework that facilitates:
+For a standard LM Head with a vocabulary size $|\mathcal{V}|$ and hidden dimension $d$, the number of parameters is:
+\begin{equation}
+    \text{Params}_{\text{LM Head}} = |\mathcal{V}| \cdot d + |\mathcal{V}| = |\mathcal{V}| \cdot (d + 1)
+    \label{eq::lm_head_params}
+\end{equation}
 
-1. Easy modification of transformer architectures through a component-based design.
-2. Efficient computation of distances and kernels using optimized tensor operations.
-3. Comprehensive logging and analysis of model behaviors during training and inference.
-4. Visualization tools for exploring the embedding space and model predictions.
+For our hybrid KNN Head, the number of parameters is:
+\begin{equation}
+    \text{Params}_{\text{KNN Head}} = |\mathcal{V}| + d + 1 = |\mathcal{V}| + (d + 1)
+    \label{eq::knn_head_params}
+\end{equation}
 
-\subsection{Optimization Techniques}
+For a typical model with $|\mathcal{V}| = 50,000$ and $d = 768$, this results in:
+\begin{align}
+    \text{Params}_{\text{LM Head}} &= 50,000 \cdot (768 + 1) = 38,450,000 \\
+    \text{Params}_{\text{KNN Head}} &= 50,000 + (768 + 1) = 50,769
+\end{align}
 
-To handle the computational challenges of our approach, we implement several optimization techniques:
+This represents a reduction of approximately 99.9\% in the number of parameters for the output layer, which can significantly improve memory efficiency and potentially reduce overfitting.
 
-1. Approximate k-nearest neighbors algorithms to reduce the computational cost of distance calculations.
-2. Caching mechanisms for token embeddings to avoid redundant computations.
-3. Mixed-precision training to reduce memory requirements and increase throughput.
-4. Parallelization strategies for distributing computations across multiple GPUs when necessary.
+\section{First-Layer-Only Attention for Efficient Transformer Inference}
 
-\subsection{Reproducibility Framework}
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/only_1_layer_attention.jpg}
+    \caption{Modified transformer architecture where attention queries from all layers attend only to keys and values from the first layer, reducing the need to store intermediate key-value pairs during inference}
+    \label{fig:first_layer_attention}
+\end{figure}
 
-We establish a reproducibility framework that includes:
+If we interpret the transformer as implementing movement in token embedding space, it raises an intuitive question about the attention mechanism: why should a token at layer $k$ attend specifically to the hidden states of previous tokens at the same layer $k$? From a physical movement perspective, it's not immediately clear how the information from the $k$-th layer of token $j$ differs meaningfully from, for example, the information from the first layer of token $j$.
 
-1. Deterministic initialization through fixed random seeds.
-2. Comprehensive configuration management using hierarchical configuration files.
-3. Automated experiment tracking with metadata about hyperparameters and results.
-4. Version control for code, configurations, and key results.
+We propose a modification to the transformer architecture where query vectors from each layer and token attend only to key vectors from the first layer of all previous tokens. Similarly, the value vectors for previous tokens are also taken only from the first layer's attention mechanism. This can be formalized as:
 
-This methodological framework enables us to systematically investigate the relationship between transformer hidden states and token embeddings, develop and evaluate alternative formulations of language modeling, and explore the geometric properties of transformer representations in embedding space.
+\begin{equation}
+    \text{Attention}(\mathbf{Q}_i^l, \mathbf{K}_{1:i-1}^1, \mathbf{V}_{1:i-1}^1) = \text{softmax}\left(\frac{\mathbf{Q}_i^l (\mathbf{K}_{1:i-1}^1)^T}{\sqrt{d_k}}\right) \mathbf{V}_{1:i-1}^1
+    \label{eq::first_layer_attention}
+\end{equation}
+
+where $\mathbf{Q}_i^l$ represents the query vectors for token $i$ at layer $l$, while $\mathbf{K}_{1:i-1}^1$ and $\mathbf{V}_{1:i-1}^1$ represent the key and value vectors for tokens $1$ through $i-1$ from the first layer only.
+
+If the performance of a transformer with this modified attention mechanism does not degrade significantly, it would provide substantial benefits during inference. Specifically, it would only be necessary to store the key-value cache from the first layer, rather than from all layers.
+
+To quantify the potential memory savings, consider a transformer with $L$ layers, sequence length $n$, and hidden dimension $d$. The standard key-value cache requires storing:
+
+\begin{equation}
+    \text{Memory}_{\text{standard}} = 2 \cdot L \cdot n \cdot d \cdot \text{sizeof(float)}
+    \label{eq::standard_kv_memory}
+\end{equation}
+
+With our proposed modification, the memory requirement becomes:
+
+\begin{equation}
+    \text{Memory}_{\text{modified}} = 2 \cdot 1 \cdot n \cdot d \cdot \text{sizeof(float)} = 2 \cdot n \cdot d \cdot \text{sizeof(float)}
+    \label{eq::modified_kv_memory}
+\end{equation}
+
+For a typical model with $L = 24$ layers, $n = 2048$ tokens, $d = 768$ dimensions, and 4 bytes per float, this results in:
+
+\begin{align}
+    \text{Memory}_{\text{standard}} &= 2 \cdot 24 \cdot 2048 \cdot 768 \cdot 4 \text{ bytes} \approx 301 \text{ MB} \\
+    \text{Memory}_{\text{modified}} &= 2 \cdot 1 \cdot 2048 \cdot 768 \cdot 4 \text{ bytes} \approx 12.6 \text{ MB}
+\end{align}
+
+This represents a 24-fold reduction in memory requirements for the key-value cache, which could significantly improve inference efficiency, especially for long sequences and resource-constrained environments.
+
+Beyond memory efficiency, this modification aligns with our interpretation of transformer operation as movement in embedding space, where the attention mechanism serves to guide this movement based on the initial representations of previous tokens rather than their intermediate states.

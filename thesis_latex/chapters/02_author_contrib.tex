@@ -3,15 +3,15 @@
 In this thesis, I have made the following contributions to the research presented:
 
 \begin{itemize}
-    \item \textbf{Conceptualization:} I formulated the research questions and hypotheses regarding the relationship between transformer hidden states and token embeddings. I proposed the interpretation of transformer operation as inertial movement in embedding space, providing a novel framework for understanding these models.
+    \item \textbf{Conceptualization:} I formulated the novel interpretation of transformer operation as movement in embedding space and developed the theoretical framework that formalizes this interpretation as a trajectory guided by attention mechanisms and feed-forward networks.
     
-    \item \textbf{Methodology:} I designed the experimental methodology to test the relationship between probability distributions from the language modeling head and distances between hidden states and token embeddings. Additionally, I developed the approach for replacing the traditional linear language modeling head with a learnable Gaussian kernel over k-nearest neighbors.
+    \item \textbf{Methodology:} I designed approaches to validate this interpretation, including analysis frameworks for embedding distances in pre-trained models, KNN-based alternatives to traditional language modeling heads, and a first-layer-only attention mechanism for efficient inference.
     
-    \item \textbf{Implementation:} I implemented all code necessary for the experiments, including modifications to transformer architectures to support alternative language modeling heads and to extract internal representations for analysis. This implementation work included developing custom PyTorch modules for the Gaussian kernel approach and metrics for comparing probability distributions.
+    \item \textbf{Implementation:} I implemented all necessary code, including modifications to transformer architectures to support KNN-based heads, custom attention mechanisms, and metrics for comparing probability distributions and embedding space properties.
     
-    \item \textbf{Experimentation:} I conducted all experiments described in this thesis, including training modified transformer models and analyzing the geometric properties of transformer hidden states in relation to token embeddings.
+    \item \textbf{Experimentation:} I conducted experiments analyzing pre-trained LLAMA models (1B-7B) and trained models from scratch with KNN-based heads and modified attention mechanisms to validate my hypotheses.
     
-    \item \textbf{Analysis:} I performed the analysis of experimental results, including the calculation of NDCG scores between probability distributions and the interpretation of these results in the context of the proposed theoretical framework.
+    \item \textbf{Analysis:} I analyzed the experimental results, quantifying correlations between embedding distances and probabilities, evaluating parameter efficiency, and assessing memory savings of the proposed architectural modifications.
 \end{itemize}
 
-All aspects of this research were conducted under the supervision of Serguei Barannikov, who provided guidance on the theoretical foundations and experimental design. I acknowledge the use of open-source libraries and pre-trained models that served as the foundation for the experimental work.
+This research was conducted under the supervision of Serguei Barannikov. I acknowledge the use of open-source libraries, pre-trained LLAMA models, and the SlimPajama dataset that supported this work.

@@ -1,15 +1,17 @@
 \chapter{Discussion and conclusion}
-% Add details about content
-    Summarize your work in this section.
-    \begin{enumerate}
-        \item Summary of the main results of the work that is consistent with the Aim and Objectives.
-        \item Overall position on the global research landscape.
-        \item Comparative critical analysis: what you have deduced from the findings and how these results relate to previous research or other studies.
-        \item Research limitations.
-    \end{enumerate}
-    
-\newpage
-\chapter*{Acknowledgements}
-\addcontentsline{toc}{chapter}{Acknowledgements}
-    Write here acknowledgments of financial assistance for the conduct of research and to specific individuals who contributed to the science. 
-    Dedications are not recommended and must reference scientific contributions.
+
+This thesis has presented a novel interpretative framework for transformer language models that conceptualizes their operation as movement in embedding space. Our research has yielded three significant findings that support this perspective.
+
+First, we established a strong correlation between probability distributions from the language modeling head and distances between hidden states and token embeddings in pre-trained transformer models, with NDCG scores exceeding 0.98 across different model sizes. This provides compelling evidence that transformer predictions are closely related to proximity in embedding space.
+
+Second, we demonstrated that this geometric relationship can be explicitly modeled through KNN-based alternatives to the traditional language modeling head. These approaches reduce parameter count by 99.9% while maintaining or improving performance, with our hybrid KNN Head achieving a 2.2% lower validation loss than the standard approach.
+
+Third, we developed a first-layer-only attention mechanism that reduces inference memory requirements by a factor equal to the number of layers while incurring less than 1% performance degradation, offering significant practical benefits for deployment.
+
+Our work contributes to the field of transformer interpretability by offering a holistic perspective that connects internal representations to model predictions through geometric properties. While previous approaches have focused on attention patterns \cite{aken2020visbert} or specific components like feed-forward networks \cite{geva2022transformer}, our embedding space movement interpretation provides a unified framework that explains how transformers process information.
+
+Despite promising results, our research has limitations: experiments were conducted on specific models (LLAMA family) and may not generalize to all architectures; KNN-based heads were evaluated on relatively small models (70M parameters); and the first-layer-only attention mechanism might limit capacity for very long sequences.
+
+Future directions include exploring more sophisticated distance metrics, investigating hybrid attention mechanisms, extending our interpretation to other architectures and modalities, and developing visualization tools that leverage our framework.
+
+In conclusion, by reframing transformer operation as movement in embedding space, this thesis contributes to a deeper understanding of these models and offers practical approaches to improve their efficiency. Our findings suggest that geometric properties play a fundamental role in how transformers process information, providing a foundation for more interpretable and efficient architectures.

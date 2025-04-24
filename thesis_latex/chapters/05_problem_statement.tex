@@ -22,9 +22,9 @@ where $\mathbf{W} \in \mathbb{R}^{|\mathcal{V}| \times d}$ and $\mathbf{b} \in \
 
 \subsection{Embedding Space}
 
-We define the embedding space as the $d$-dimensional vector space in which token embeddings and hidden states reside. For any token $v \in \mathcal{V}$, its embedding is denoted as $\mathbf{e}_v \in \mathbb{R}^d$, which corresponds to the $v$-th row of the embedding matrix $\mathbf{E}$.
+We define the embedding space as the $d$-dimensional vector space containing token embeddings and hidden states. For any token $v \in \mathcal{V}$, its embedding $\mathbf{e}_v \in \mathbb{R}^d$ corresponds to the $v$-th row of the embedding matrix $\mathbf{E}$.
 
-The distance between two vectors $\mathbf{a}$ and $\mathbf{b}$ in the embedding space is measured using the Euclidean distance:
+The Euclidean distance between vectors $\mathbf{a}$ and $\mathbf{b}$ in this space is:
 
 \begin{equation}
     d(\mathbf{a}, \mathbf{b}) = \|\mathbf{a} - \mathbf{b}\|_2 = \sqrt{\sum_{j=1}^d (a_j - b_j)^2}
@@ -33,50 +33,51 @@ The distance between two vectors $\mathbf{a}$ and $\mathbf{b}$ in the embedding 
 
 \section{Research Problems}
 
-This thesis addresses the following research problems:
+\begin{figure}[h]
+    \centering
+    \begin{minipage}{0.37\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/classic_transformer_schema.png}
+        \caption{Classical illustration of the transformer schema}
+        \label{fig:classic_transformer}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.57\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/my_transformer_schema.jpg}
+        \caption{This illustration shows us the inference of the transformer as movement in the embedding space from token to token, where intermediate hidden states are denoted as intermediate steps}
+        \label{fig:my_transformer}
+    \end{minipage}
+\end{figure}
 
-\subsection{Relationship Between Probability Distributions and Embedding Distances}
+\subsection{Reinterpreting Transformer Dynamics}
 
-We investigate the relationship between the probability distribution produced by the language modeling head and the distances between the final hidden state and token embeddings in the vocabulary. Specifically, we examine whether there exists a correlation between the probability assigned to a token and its proximity to the final hidden state in the embedding space.
+The conventional interpretation of transformer architecture, as illustrated in Figure \ref{fig:classic_transformer}, is highly technical and mechanistic. This view primarily focuses on specific matrix multiplications and how attention mechanisms combine key, query, and value vectors through various mathematical operations. While this perspective is valuable for understanding the model's implementation details, it often obscures a crucial concept: the residual stream and its evolution through the network.
 
-For a given hidden state $\mathbf{h}$ and a token $v \in \mathcal{V}$, we study the relationship between $P(v|\mathbf{h})$ and $d(\mathbf{h}, \mathbf{e}_v)$, where $P(v|\mathbf{h})$ is the probability assigned to token $v$ by the language model given hidden state $\mathbf{h}$, and $d(\mathbf{h}, \mathbf{e}_v)$ is the Euclidean distance between $\mathbf{h}$ and the embedding of token $v$.
-
-We hypothesize that there exists an inverse relationship between these quantities, such that tokens with higher probabilities tend to have smaller distances to the hidden state in the embedding space. To quantify this relationship, we use the Normalized Discounted Cumulative Gain (NDCG) metric:
+We propose an alternative interpretation of transformers as performing a form of movement through embedding space, as depicted in Figure \ref{fig:my_transformer}. In this framework, the transformer's operation can be conceptualized as a trajectory in the high-dimensional embedding space, where each layer contributes to this movement in a complex, non-linear manner. Formally, we can express the evolution of the hidden state $\mathbf{h}_i^l$ for token $i$ at layer $l$ as:
 
 \begin{equation}
-    \text{NDCG} = \frac{\text{DCG}}{\text{IDCG}}
-    \label{eq::ndcg}
+    \mathbf{h}_i^{l} = \mathbf{h}_i^{l-1} + \Delta\mathbf{h}_i^{l}
+    \label{eq::residual_movement}
 \end{equation}
 
-where DCG (Discounted Cumulative Gain) is computed based on the ranking of tokens according to their probabilities and inverse distances, and IDCG is the ideal DCG.
-
-\subsection{Gaussian Kernel Language Modeling}
-
-We propose an alternative formulation of the language modeling objective that replaces the traditional linear language modeling head with a learnable Gaussian kernel over k-nearest neighbors to token embeddings. The probability of the next token is computed as:
+where $\Delta\mathbf{h}_i^{l}$ represents the displacement vector contributed by layer $l$. This displacement can be further decomposed into contributions from the attention mechanism and the feed-forward network:
 
 \begin{equation}
-    P(x_{i+1} = v | x_1, \ldots, x_i) = \frac{\exp\left(-\frac{d(\mathbf{h}_i^L, \mathbf{e}_v)^2}{2\sigma_v^2}\right)}{\sum_{v' \in \mathcal{V}} \exp\left(-\frac{d(\mathbf{h}_i^L, \mathbf{e}_{v'})^2}{2\sigma_{v'}^2}\right)}
-    \label{eq::gaussian_kernel}
+    \Delta\mathbf{h}_i^{l} = \text{Attn}(\mathbf{h}_i^{l-1}, \mathbf{H}^{l-1}) + \text{FFN}(\mathbf{h}_i^{l-1})
+    \label{eq::displacement}
 \end{equation}
 
-where $\sigma_v$ is a learnable parameter that controls the width of the Gaussian kernel for token $v$. This formulation makes the connection between hidden states and token embeddings more explicit and potentially more interpretable.
+where $\mathbf{H}^{l-1}$ represents the set of all hidden states at layer $l-1$, and $\text{Attn}(\cdot)$ and $\text{FFN}(\cdot)$ are the attention and feed-forward network functions, respectively.
 
-\subsection{Inertial Movement in Embedding Space}
+From this perspective, what attention and feed-forward layers fundamentally do in each decoder layer is shift the residual stream by a certain vector, effectively taking a step in the dynamics of the embedding space. This movement is guided by the context provided by other tokens (through attention) and by learned patterns (through the feed-forward network).
 
-TODO: This section will be filled in later with a description of the theoretical framework that interprets transformer operation as inertial movement in embedding space.
+This reinterpretation of transformer operation as movement in embedding space requires empirical validation and theoretical analysis. However, if substantiated, it offers several advantages:
 
-\section{Research Objectives}
+1. It provides a more intuitive understanding of how transformers process sequential information, viewing them as navigating through a semantic space rather than merely applying a series of transformations.
 
-Based on the research problems defined above, this thesis aims to:
+2. It establishes a connection between transformer operations and dynamical systems, potentially allowing us to apply concepts from physics and differential equations to analyze and improve these models.
 
-\begin{enumerate}
-    \item Empirically verify the relationship between probability distributions from the language modeling head and distances between hidden states and token embeddings in the vocabulary.
-    
-    \item Develop and evaluate a transformer model that uses a learnable Gaussian kernel over k-nearest neighbors to token embeddings instead of a traditional linear language modeling head.
-    
-    \item Formulate and validate a theoretical framework that interprets transformer operation as inertial movement in embedding space.
-    
-    \item Derive insights from these investigations that can guide the development of more interpretable and efficient transformer architectures.
-\end{enumerate}
+3. It suggests new architectural modifications that could enhance the efficiency and interpretability of transformers by explicitly modeling the dynamics of this movement.
 
-Through these objectives, we seek to contribute to a deeper understanding of how transformer language models process and represent information, with a particular focus on the geometric properties of their internal representations in embedding space.
+In the following sections, we explore this interpretation further through two specific research directions: analyzing the relationship between probability distributions and embedding distances, and developing alternative formulations of the language modeling objective based on this geometric perspective.
