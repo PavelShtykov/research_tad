@@ -4,6 +4,7 @@ torch.set_float32_matmul_precision("high")
 from transformers import LlamaConfig, AutoTokenizer
 
 from torch.utils.data import DataLoader
+import torch._dynamo
 
 import torch
 import lightning as L
@@ -14,29 +15,33 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 import datetime
 
 from aux.utils import provide_pajama, get_git_info
-from aux.arch_mod import Mods, provide_litllm_with_mod
+from aux.arch_mod import LitLLM
 
+os.environ['TORCH_LOGS'] = "+dynamo"
+os.environ['TORCHDYNAMO_VERBOSE'] = '1'
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # ============================================================================================================================
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-MICRO_BATCH = 8
-ACCUMULATED_BATCHES = 128
-TARGET_GLOBAL_BATCH = 1024
+MICRO_BATCH = 2
+ACCUMULATED_BATCHES = 32
+TARGET_GLOBAL_BATCH = 192
 VAL_BATCH = 8
-TARGET_TRAIN_TOKENS = 1_000_000_000
+TARGET_TRAIN_TOKENS = 3_000_000_000
 MAX_LENGTH = 1024
-MODS_LIST = [Mods.first_layer_key_value]
+LLAMA_CLASS = 'Base_Llama'
+MODS_LIST = []
 
-GLOBAL_BATCH = ACCUMULATED_BATCHES * MICRO_BATCH # ~1k
-assert abs(TARGET_GLOBAL_BATCH - GLOBAL_BATCH) / TARGET_GLOBAL_BATCH < 0.07
+GLOBAL_BATCH = ACCUMULATED_BATCHES * MICRO_BATCH
+# assert abs(TARGET_GLOBAL_BATCH - GLOBAL_BATCH) / TARGET_GLOBAL_BATCH < 0.07
 ITERS = TARGET_TRAIN_TOKENS // 700
 MAX_STEPS = ITERS // GLOBAL_BATCH
+_TOKENS_PER_STEP = GLOBAL_BATCH * 700
 
 
-logger.info(f'TARGET_TRAIN_TOKENS: {TARGET_TRAIN_TOKENS}; GLOBAL_BATCH: {GLOBAL_BATCH}; MICRO_BATCH: {MICRO_BATCH}; ACCUMULATED_BATCHES: {ACCUMULATED_BATCHES}; MAX_STEPS: {MAX_STEPS}; ITERS: {ITERS}; VAL_BATCH: {VAL_BATCH}; MAX_LENGTH: {MAX_LENGTH}, MODS: {MODS_LIST}')
+logger.info(f'{TARGET_TRAIN_TOKENS=}; {GLOBAL_BATCH=}; {MICRO_BATCH=}; {ACCUMULATED_BATCHES=}; {MAX_STEPS=}; {ITERS=}; {VAL_BATCH=}; {MAX_LENGTH=}; {_TOKENS_PER_STEP=}; {MODS_LIST=}; {LLAMA_CLASS=}')
 # ============================================================================================================================
 
 
@@ -57,12 +62,12 @@ train_dataloader, val_dataloader = provide_pajama(
 
 config = LlamaConfig(
     vocab_size=tokenizer.vocab.__len__(),  # 32k size
-    hidden_size=512,
-    intermediate_size=512*4,
-    num_hidden_layers=12,
+    hidden_size=768,
+    intermediate_size=768*4,
+    num_hidden_layers=16,
     num_attention_heads=16,
     num_key_value_heads=16,
-    head_dim=32,
+    head_dim=48,
     max_position_embeddings=tokenizer.model_max_length,  # 2048 tokens
     rms_norm_eps=1e-5,
     bos_token_id=tokenizer.bos_token_id,
@@ -74,23 +79,25 @@ config = LlamaConfig(
     tie_word_embeddings=True,
     model_type="llama",
     torch_dtype='bfloat16',
-    _attn_implementation='eager'
+    _attn_implementation='flash_attention_2',
+    _attn_implementation_my='layer0_attention_eager'
     # _attn_implementation_autoset=True,
 )
 
-lit_llm = provide_litllm_with_mod(
-    llama_config=config, total_steps=MAX_STEPS,
-    mods=MODS_LIST,
-    max_lr=3e-4, warmup=0.05,
+lit_llm = LitLLM(
+    config, LLAMA_CLASS, MODS_LIST,
+    use_compile=False, 
+    max_lr=3e-4, warmup=0.05, total_steps=MAX_STEPS
 )
 
 mods_str = '+'.join(
     "".join([p[0] for p in m.name.split('_')]) 
     for m in MODS_LIST
 ) 
+llama_class_str = "".join([p[0] for p in LLAMA_CLASS.split('_')]) 
 wandb_logger = WandbLogger(
     project=f'base_microllama_64m',
-    version=f'v_{mods_str}_{TARGET_TRAIN_TOKENS // 10**6}Mtok_{MAX_STEPS}steps_{GLOBAL_BATCH}gbs',
+    version=f'v_{llama_class_str}_{mods_str}_{TARGET_TRAIN_TOKENS // 10**6}Mtok_{MAX_STEPS}steps_{GLOBAL_BATCH}gbs',
     # log_model=False,
     config={
         'micro_batch': MICRO_BATCH,
@@ -119,13 +126,25 @@ callbacks = [
 
 
 trainer = L.Trainer(
-    logger=wandb_logger,
-    callbacks=callbacks,
+    fast_dev_run=10,
+    accelerator="gpu", devices=1, 
+    precision='bf16-mixed'
+)
+trainer.fit(
+    model=lit_llm, 
+    train_dataloaders=train_dataloader,
+    val_dataloaders=val_dataloader
+)
+
+
+trainer = L.Trainer(
+    # logger=wandb_logger,
+    # callbacks=callbacks,
     log_every_n_steps=4,
     max_steps=MAX_STEPS, 
     limit_train_batches=ITERS // MICRO_BATCH,
     accumulate_grad_batches=ACCUMULATED_BATCHES, 
-    val_check_interval=2*ACCUMULATED_BATCHES,
+    val_check_interval=200*ACCUMULATED_BATCHES,
     limit_val_batches=8,
     num_sanity_val_steps=4,
 

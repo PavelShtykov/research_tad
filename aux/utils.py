@@ -61,8 +61,8 @@ def _build_dataset(
     ):
     def collate_fn(batch, pad_idx, max_len):
         
-        batch_max = min(max_len, max(map(lambda x: len(x['input_ids']), batch)))
-
+        # batch_max = min(max_len, max(map(lambda x: len(x['input_ids']), batch)))
+        batch_max = max_len
         ret = dict()
         ret['input_ids'] = torch.tensor([
             x['input_ids'][:batch_max] + [pad_idx] * max(0, batch_max - len(x['input_ids']))

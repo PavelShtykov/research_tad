@@ -5,57 +5,17 @@ from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaFor
 from transformers.models.llama.configuration_llama import LlamaConfig
 
 import types
-from typing import Tuple, Optional, Unpack, List, Literal, Callable, Dict
+from typing import Tuple, Optional, Unpack, List, Literal, Callable, Dict, Union
 from lightning import LightningModule
 from litgpt.utils import chunked_cross_entropy
 from functools import partial
 from enum import Enum, auto
 
-from .layer0_llama import LlamaForCausalLM as LlamaForCausalLMFirstLayer
-
-
-class LitLLM(LightningModule):
-    def __init__(self, llama_config: LlamaConfig, total_steps: int, max_lr: float=3e-4, warmup: float = 0.05,):
-        super().__init__()
-        self.model = LlamaForCausalLM(llama_config)
-        self.warmup = warmup
-        self.total_steps = total_steps
-        self.max_lr = max_lr
-
-        self._consumed_tokens = 0
-    
-    def training_step(self, batch, batch_idx):
-        outputs = self.model(**batch)
-        predict = outputs['logits'][..., :-1, :]
-        target = batch["input_ids"][..., 1:]
-        loss = chunked_cross_entropy(predict, target, chunk_size=256, ignore_index=self.model.config.pad_token_id)
-
-        self.log("train/loss", loss, prog_bar=True)
-        # self.log('train/steps', batch_idx // ACCUMULATED_BATCHES, prog_bar=True)
-
-        self._consumed_tokens += batch['attention_mask'].sum().item()
-        self.log('train/consumed_tokens', self._consumed_tokens)
-        return loss
-    
-    def validation_step(self, batch):
-        outputs = self.model(**batch)
-        predict = outputs['logits'][..., :-1, :]
-        target = batch["input_ids"][..., 1:]
-        loss = chunked_cross_entropy(predict, target, chunk_size=64, ignore_index=self.model.config.pad_token_id)
-
-        self.log("val/loss", loss, prog_bar=True)
-
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.model.parameters(), lr=3e-4, weight_decay=0.1, betas=(0.9, 0.95))
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.max_lr, total_steps=self.total_steps, pct_start=self.warmup, anneal_strategy='linear')
-        
-        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "interval": "step"}}
+from .layer0_llama import LlamaForCausalLMFirstLayer
 
 
 
-
-def mod_parallel_attention(model: LitLLM):
+def mod_parallel_attention(model: torch.nn.Module):
     def new_forward(
         self,
         hidden_states: torch.Tensor,
@@ -84,11 +44,7 @@ def mod_parallel_attention(model: LitLLM):
             position_embeddings=position_embeddings,
             **kwargs,
         )
-        # hidden_states = residual + hidden_states
 
-        # Fully Connected
-        # residual = hidden_states
-        # hidden_states = self.post_attention_layernorm(hidden_states)
         hidden_states_mlp = self.mlp(hidden_states_layer_norm)
         
         result_hidden_states = residual + hidden_states_attn + hidden_states_mlp
@@ -108,7 +64,7 @@ def mod_parallel_attention(model: LitLLM):
     return model
 
 
-def mod_knn_as_lm_head(model: LitLLM, inv_type: Literal['gaussian', 'neg_local', 'neg_local_global']='gaussian'):
+def _mod_knn_as_lm_head(model: torch.nn.Module, inv_type: Literal['gaussian', 'neg_local', 'neg_local_global']='gaussian'):
     class KnnLmHead(torch.nn.Module):
         def __init__(self, emb_mat: torch.Tensor, inv_type: Literal['gaussian', 'neg_local', 'neg_local_global']='gaussian'):
             super().__init__()
@@ -165,56 +121,78 @@ def mod_knn_as_lm_head(model: LitLLM, inv_type: Literal['gaussian', 'neg_local',
     return model
 
 
-def mod_first_layer_key_value(lit_model: LitLLM):
-    lit_model.model = LlamaForCausalLMFirstLayer(lit_model.model.config)
+mod_knn_as_lm_head_gaussian: Callable = partial(_mod_knn_as_lm_head, inv_type='gaussian')
+mod_knn_as_lm_head_neg_local: Callable = partial(_mod_knn_as_lm_head, inv_type='neg_local')
+mod_knn_as_lm_head_neg_local_global: Callable = partial(_mod_knn_as_lm_head, inv_type='neg_local_global')
+
+
+MODS = {
+    "parallel_attention": mod_parallel_attention,
+    "knn_as_lm_head_gaussian": mod_knn_as_lm_head_gaussian,
+    "knn_as_lm_head_neg_local": mod_knn_as_lm_head_neg_local,
+    "knn_as_lm_head_neg_local_global": mod_knn_as_lm_head_neg_local_global
+}
+
+
+LLAMA_LM_CLASSES = {
+    "Base_Llama": LlamaForCausalLM,
+    "First_Layer_Llama": LlamaForCausalLMFirstLayer
+}
+
+
+class LitLLM(LightningModule):
+    def __init__(
+            self, 
+            llama_config: LlamaConfig, 
+            llama_lm_class: str,
+            mods: List[str] = [],
+            use_compile: bool = True,
+            total_steps: int=10, max_lr: float = 3e-4, warmup: float = 0.05,
+        ):
+        super().__init__()
+
+        self.model = LLAMA_LM_CLASSES[llama_lm_class](llama_config)
+        for mod in mods:
+            self.model = MODS[mod](self.model)
+
+        if use_compile:
+            self.model = torch.compile(self.model, mode='reduce-overhead')
+
+        self.warmup = warmup
+        self.total_steps = total_steps
+        self.max_lr = max_lr
+
+        self._consumed_tokens = 0
     
-    return lit_model
+    def training_step(self, batch, batch_idx):
+        outputs = self.model(**batch)
+        logits = outputs['logits'][..., :-1, :]
+        targets = batch["input_ids"][..., 1:]
 
+        logits = logits.reshape(-1, logits.size(-1))
+        targets = targets.reshape(-1)
+        loss =  torch.nn.functional.cross_entropy(logits, targets, ignore_index=self.model.config.pad_token_id)
 
-class Mods(Enum):
-    parallel_attention = auto()
-    knn_as_lm_head_gaussian = auto()
-    knn_as_lm_head_neg_local = auto()
-    knn_as_lm_head_neg_local_global = auto()
-    first_layer_key_value = auto()
+        # loss = chunked_cross_entropy(predict, target, chunk_size=256, ignore_index=self.model.config.pad_token_id)
 
-    def apply(self, model: LitLLM) -> LitLLM:
-        operations: Dict[Mods, Callable] = {
-            Mods.parallel_attention: mod_parallel_attention(model),
-            Mods.knn_as_lm_head_gaussian: mod_knn_as_lm_head(model, inv_type='gaussian'),
-            Mods.knn_as_lm_head_neg_local: mod_knn_as_lm_head(model, 'neg_local'),
-            Mods.knn_as_lm_head_neg_local_global: mod_knn_as_lm_head(model, 'neg_local_global'),
-            Mods.first_layer_key_value: mod_first_layer_key_value(model)
-        }
-        return operations[self](model)
+        self.log("train/loss", loss, prog_bar=True)
+        # self.log('train/steps', batch_idx // ACCUMULATED_BATCHES, prog_bar=True)
 
-
-# ModFunc = Callable[[LitLLM], LitLLM]
-# class Mods(enum.Enum):
-#     parallel_attention: ModFunc = mod_parallel_attention
-#     knn_as_lm_head_gaussian: ModFunc = partial(mod_knn_as_lm_head, inv_type='gaussian')
-#     knn_as_lm_head_neg_local: ModFunc = partial(mod_knn_as_lm_head, inv_type='neg_local')
-#     knn_as_lm_head_neg_local_global: ModFunc = partial(mod_knn_as_lm_head, inv_type='neg_local_global')
-#     first_layer_key_value: ModFunc = mod_first_layer_key_value
-
-
-def provide_litllm_with_mod(
-        mods: Optional[List[Mods]],
-        llama_config: LlamaConfig, 
-        total_steps: int, max_lr: float=3e-4, warmup: float = 0.05,
-    ):
-    model = LitLLM(llama_config, total_steps, max_lr, warmup)
-    if not mods:    
-        return model
-
-    return mod_first_layer_key_value(model)
-
-    if Mods.first_layer_key_value in mods:
-        assert len(mods) == 1
-        return mods[0].apply(model)
+        self._consumed_tokens += batch['attention_mask'].sum().item()
+        self.log('train/consumed_tokens', self._consumed_tokens)
+        return loss
     
-    raise NotImplementedError
-    for curr_mod in mods:
-        model = curr_mod.apply(model)
-    
-    return model
+    def validation_step(self, batch):
+        outputs = self.model(**batch)
+        predict = outputs['logits'][..., :-1, :]
+        target = batch["input_ids"][..., 1:]
+        loss = chunked_cross_entropy(predict, target, chunk_size=128, ignore_index=self.model.config.pad_token_id)
+
+        self.log("val/loss", loss, prog_bar=True)
+
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=3e-4, weight_decay=0.1, betas=(0.9, 0.95))
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.max_lr, total_steps=self.total_steps, pct_start=self.warmup, anneal_strategy='linear')
+        
+        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "interval": "step"}}

@@ -55,7 +55,7 @@ from transformers.models.llama.configuration_llama import LlamaConfig
 
 
 if is_torch_flex_attn_available():
-    from torch.nn.attention.flex_attention import BlockMask
+    from torch.nn.attention.flex_attention import BlockMask, create_block_mask, flex_attention
 
     from transformers.integrations.flex_attention import make_flex_block_causal_mask
 
@@ -185,33 +185,33 @@ def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
-# def eager_attention_forward(
-#     module: nn.Module,
-#     query: torch.Tensor,
-#     key: torch.Tensor,
-#     value: torch.Tensor,
-#     attention_mask: Optional[torch.Tensor],
-#     scaling: float,
-#     dropout: float = 0.0,
-#     **kwargs,
-# ):
-#     key_states = repeat_kv(key, module.num_key_value_groups)
-#     value_states = repeat_kv(value, module.num_key_value_groups)
+def eager_attention_forward(
+    module: nn.Module,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attention_mask: Optional[torch.Tensor],
+    scaling: float,
+    dropout: float = 0.0,
+    **kwargs,
+):
+    key_states = repeat_kv(key, module.num_key_value_groups)
+    value_states = repeat_kv(value, module.num_key_value_groups)
 
-#     attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
-#     if attention_mask is not None:
-#         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-#         attn_weights = attn_weights + causal_mask
+    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
+    if attention_mask is not None:
+        causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+        attn_weights = attn_weights + causal_mask
 
-#     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
-#     attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
-#     attn_output = torch.matmul(attn_weights, value_states)
-#     attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+    attn_output = torch.matmul(attn_weights, value_states)
+    attn_output = attn_output.transpose(1, 2).contiguous()
 
-#     return attn_output, attn_weights
+    return attn_output, attn_weights
 
 
-class EagerAttention:
+class Layer0AttentionEager:
     def __init__(self):
         self.first_key_states = None
         self.first_value_states = None
@@ -268,7 +268,50 @@ class EagerAttention:
 
         return attn_output, None # attn_weights
 
-eager_attention_forward = EagerAttention()
+
+class Layer0AttentionFlex:
+    def __init__(self):
+        self.first_key_states = None
+        self.first_value_states = None
+    
+    def __call__(
+        self,     
+        module: nn.Module,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        attention_mask: BlockMask,
+        scaling: float,
+        layer_idx: int,
+        dropout: float = 0.0,
+        **kwargs,
+    ):
+        assert isinstance(attention_mask, BlockMask)
+
+        key_states = repeat_kv(key, module.num_key_value_groups)
+        value_states = repeat_kv(value, module.num_key_value_groups)
+
+        if layer_idx == 0:
+            self.first_key_states = key_states
+            self.first_value_states = value_states
+
+        cat_key = torch.cat((self.first_key_states, key_states), dim=-2)
+        cat_value = torch.cat((self.first_value_states, value_states), dim=-2)
+
+        # print(query.dtype, cat_key.dtype, cat_value.dtype)
+
+        attn_output = flex_attention(
+            query.to(torch.bfloat16), cat_key.to(torch.bfloat16), cat_value.to(torch.bfloat16), block_mask=attention_mask, scale=scaling
+        )
+        attn_output = attn_output.transpose(1, 2).contiguous()
+
+        return attn_output, None # attn_weights
+
+
+ALL_LAYER0_ATTENTIONS_FUNCTIONS = {
+    "layer0_attention_flex": Layer0AttentionFlex(),
+    "layer0_attention_eager": Layer0AttentionEager(),
+} 
 
 
 class LlamaAttention(nn.Module):
@@ -321,15 +364,8 @@ class LlamaAttention(nn.Module):
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        attention_interface: Callable = eager_attention_forward
-        if self.config._attn_implementation != "eager":
-            if self.config._attn_implementation == "sdpa" and kwargs.get("output_attentions", False):
-                logger.warning_once(
-                    "`torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
-                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
-                )
-            else:
-                attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
+        attention_interface: Callable = ALL_LAYER0_ATTENTIONS_FUNCTIONS[self.config._attn_implementation_my]
+        
 
         attn_output, attn_weights = attention_interface(
             module=self,
@@ -671,6 +707,20 @@ class LlamaModel(LlamaPreTrainedModel):
             if attention_mask is not None and (attention_mask == 0.0).any():
                 return attention_mask
             return None
+        if self.config._attn_implementation_my == 'layer0_attention_flex':
+            assert attention_mask.dim() == 2
+            bs, q_len = attention_mask.shape
+            tokens = attention_mask.sum(-1)
+            def causal_mask(b, h, q_idx, kv_idx):
+                return  ((q_idx + q_len == kv_idx) | (kv_idx <= q_idx - 1)) & (q_idx < tokens[b])
+            
+            return create_block_mask(
+                causal_mask, 
+                B=bs, H=None, Q_LEN=q_len, KV_LEN=2*q_len,
+                # BLOCK_SIZE=64, 
+                device=attention_mask.device, _compile=True
+            )
+
         if self.config._attn_implementation == "flex_attention":
             if isinstance(attention_mask, torch.Tensor):
                 attention_mask = make_flex_block_causal_mask(attention_mask)
@@ -793,15 +843,15 @@ class LlamaModel(LlamaPreTrainedModel):
 class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
 
 
-class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
+class LlamaForCausalLMFirstLayer(LlamaPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
     _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
 
     def __init__(self, config):
         super().__init__(config)
-        assert config._attn_implementation == 'eager'
-        logger.info(f"\n\nUSES MY LLAMA first_layer with {config._attn_implementation}!!!!\n\n")
+        assert config._attn_implementation_my in ('layer0_attention_eager', 'layer0_attention_flex')
+
         self.model = LlamaModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
@@ -1179,7 +1229,7 @@ class LlamaForTokenClassification(LlamaPreTrainedModel):
 
 
 __all__ = [
-    "LlamaForCausalLM",
+    "LlamaForCausalLMFirstLayer",
     "LlamaModel",
     "LlamaPreTrainedModel",
     "LlamaForSequenceClassification",
