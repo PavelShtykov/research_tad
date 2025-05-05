@@ -156,7 +156,7 @@ class LitLLM(LightningModule):
             self.model = MODS[mod](self.model)
 
         if use_compile:
-            self.model = torch.compile(self.model, mode='reduce-overhead')
+            self.model = torch.compile(self.model)
 
         self.warmup = warmup
         self.total_steps = total_steps
@@ -193,6 +193,6 @@ class LitLLM(LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=3e-4, weight_decay=0.1, betas=(0.9, 0.95))
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.max_lr, total_steps=self.total_steps, pct_start=self.warmup, anneal_strategy='linear')
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.max_lr, total_steps=self.total_steps, pct_start=self.warmup, anneal_strategy='cos')
         
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "interval": "step"}}

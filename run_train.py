@@ -25,17 +25,17 @@ logger = logging.getLogger(__name__)
 
 # ============================================================================================================================
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-MICRO_BATCH = 2
-ACCUMULATED_BATCHES = 32
-TARGET_GLOBAL_BATCH = 192
+MICRO_BATCH = 12
+ACCUMULATED_BATCHES = 21
+TARGET_GLOBAL_BATCH = 256
 VAL_BATCH = 8
-TARGET_TRAIN_TOKENS = 3_000_000_000
+TARGET_TRAIN_TOKENS = 1_000_000_000
 MAX_LENGTH = 1024
 LLAMA_CLASS = 'Base_Llama'
 MODS_LIST = []
 
 GLOBAL_BATCH = ACCUMULATED_BATCHES * MICRO_BATCH
-# assert abs(TARGET_GLOBAL_BATCH - GLOBAL_BATCH) / TARGET_GLOBAL_BATCH < 0.07
+assert abs(TARGET_GLOBAL_BATCH - GLOBAL_BATCH) / TARGET_GLOBAL_BATCH < 0.07
 ITERS = TARGET_TRAIN_TOKENS // 700
 MAX_STEPS = ITERS // GLOBAL_BATCH
 _TOKENS_PER_STEP = GLOBAL_BATCH * 700
@@ -64,10 +64,10 @@ config = LlamaConfig(
     vocab_size=tokenizer.vocab.__len__(),  # 32k size
     hidden_size=768,
     intermediate_size=768*4,
-    num_hidden_layers=16,
-    num_attention_heads=16,
-    num_key_value_heads=16,
-    head_dim=48,
+    num_hidden_layers=12,
+    num_attention_heads=12,
+    num_key_value_heads=12,
+    head_dim=64,
     max_position_embeddings=tokenizer.model_max_length,  # 2048 tokens
     rms_norm_eps=1e-5,
     bos_token_id=tokenizer.bos_token_id,
@@ -80,14 +80,14 @@ config = LlamaConfig(
     model_type="llama",
     torch_dtype='bfloat16',
     _attn_implementation='flash_attention_2',
-    _attn_implementation_my='layer0_attention_eager'
+    # _attn_implementation_my='layer0_attention_eager'
     # _attn_implementation_autoset=True,
 )
 
 lit_llm = LitLLM(
     config, LLAMA_CLASS, MODS_LIST,
-    use_compile=False, 
-    max_lr=3e-4, warmup=0.05, total_steps=MAX_STEPS
+    use_compile=True, 
+    max_lr=1e-3, warmup=0.05, total_steps=MAX_STEPS
 )
 
 mods_str = '+'.join(
@@ -96,7 +96,7 @@ mods_str = '+'.join(
 ) 
 llama_class_str = "".join([p[0] for p in LLAMA_CLASS.split('_')]) 
 wandb_logger = WandbLogger(
-    project=f'base_microllama_64m',
+    project=f'base_microllama_170m',
     version=f'v_{llama_class_str}_{mods_str}_{TARGET_TRAIN_TOKENS // 10**6}Mtok_{MAX_STEPS}steps_{GLOBAL_BATCH}gbs',
     # log_model=False,
     config={
@@ -106,7 +106,8 @@ wandb_logger = WandbLogger(
         'target_tokens': TARGET_TRAIN_TOKENS,
         'max_steps': MAX_STEPS,
         'mods': [mod.name for mod in MODS_LIST],
-        'git': get_git_info()
+        'git': get_git_info(),
+        'llama_config': config.to_dict()
     }
 )
 wandb_logger.watch(lit_llm)
@@ -138,13 +139,13 @@ trainer.fit(
 
 
 trainer = L.Trainer(
-    # logger=wandb_logger,
-    # callbacks=callbacks,
+    logger=wandb_logger,
+    callbacks=callbacks,
     log_every_n_steps=4,
     max_steps=MAX_STEPS, 
     limit_train_batches=ITERS // MICRO_BATCH,
     accumulate_grad_batches=ACCUMULATED_BATCHES, 
-    val_check_interval=200*ACCUMULATED_BATCHES,
+    val_check_interval=3*ACCUMULATED_BATCHES,
     limit_val_batches=8,
     num_sanity_val_steps=4,
 
