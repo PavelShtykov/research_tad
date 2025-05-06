@@ -16,8 +16,8 @@ RUN apt-get install -y python3-pip
 RUN apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-
-WORKDIR /workspace
+ENV HOME=/home
+WORKDIR /home/workspace
 
 COPY requirements.txt ./requirements1.txt
 RUN pip install --no-cache-dir -r requirements1.txt

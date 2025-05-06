@@ -56,10 +56,10 @@ def process_and_save_dataset(split, num_samples, buffer_size, num_shards, output
 
 process_and_save_dataset(
     split='train', 
-    num_samples=1_500_000 * 3, 
+    num_samples=5_000_000, 
     buffer_size=50_000, 
-    num_shards=256, 
-    output_path_template="slim_pajama_3m/train/{index:05d}.parquet"
+    num_shards=320, 
+    output_path_template="./slim_pajama_5m/train/{index:05d}.parquet"
 )
 
 process_and_save_dataset(
@@ -67,5 +67,5 @@ process_and_save_dataset(
     num_samples=50_000, 
     buffer_size=10_000, 
     num_shards=16, 
-    output_path_template="slim_pajama_3m/validation/{index:05d}.parquet"
+    output_path_template="./slim_pajama_5m/validation/{index:05d}.parquet"
 )

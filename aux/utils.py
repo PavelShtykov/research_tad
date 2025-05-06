@@ -76,7 +76,8 @@ def _build_dataset(
         return ret
     
     dataset: IterableDataset = load_dataset(path, data_files=data_files, streaming=True)
-    dataset = dataset.filter(filter_fn)
+    if filter_fn:
+        dataset = dataset.filter(filter_fn)
     dataset = dataset.remove_columns(['text', 'meta'])
 
     train_dataloader = torch.utils.data.DataLoader(
@@ -107,10 +108,10 @@ def provide_pajama(
         val_batch: Optional[int] = None, 
     ):
     return _build_dataset(
-        path='aux/slim_pajama_3m',
+        path='aux/slim_pajama_5m',
         train_batch=train_batch,
         pad_token_id=pad_token_id,
         max_length=max_length,
         val_batch=val_batch,
-        filter_fn=lambda b: b['meta']['redpajama_set_name'] not in {'RedPajamaStackExchange', 'RedPajamaGithub', 'RedPajamaArXiv'},
+        # filter_fn=lambda b: b['meta']['redpajama_set_name'] not in {'RedPajamaStackExchange', 'RedPajamaGithub', 'RedPajamaArXiv'},
     )
