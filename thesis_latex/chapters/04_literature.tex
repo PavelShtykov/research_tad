@@ -24,14 +24,10 @@ The relationship between transformer hidden states and token embeddings has been
 
 \section{Research Gaps and Opportunities}
 
-Despite these advances, several gaps remain:
+Despite advances in transformer interpretability, several key gaps remain:
 
-\begin{enumerate}
-    \item The specific connection between probability distributions from the language modeling head and distances between hidden states and token embeddings remains underexplored.
-    
-    \item Alternative formulations using learnable Gaussian kernels over k-nearest neighbors to token embeddings have not been thoroughly investigated for their impact on interpretability.
-    
-    \item The conceptualization of transformer operation as inertial movement in embedding space has not been fully developed into a comprehensive framework with empirical validation.
-\end{enumerate}
+Current approaches create an artificial separation between token embeddings and hidden states, hindering unified understanding of information flow through transformers. While geometric interpretations exist, the concept of viewing transformer operations as a continuous trajectory through embedding space remains underexplored.
 
-Our research addresses these gaps by developing a more complete understanding of transformer operations in embedding space, focusing on the relationship between internal representations and output probabilities.
+The relationship between final hidden states and token embeddings has not been systematically investigated across different architectures, particularly regarding how proximity in embedding space correlates with token prediction probabilities in models with and without weight tying.
+
+Additionally, methods to constrain intermediate hidden states within the token embedding manifold are lacking. These gaps present opportunities for developing a more intuitive framework for transformer interpretation by reconceptualizing operations as movement through embedding space.

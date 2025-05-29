@@ -1,17 +1,17 @@
-\chapter{Discussion and conclusion}
+\chapter{Discussion and Conclusion}
 
-This thesis has presented a novel interpretative framework for transformer language models that conceptualizes their operation as movement in embedding space. Our research has yielded three significant findings that support this perspective.
+This thesis explored a potential interpretative framework for transformer language models based on the concept of movement through embedding space. The research attempted to address a gap in current approaches to transformer interpretation, which typically separate token embeddings from hidden states.
 
-First, we established a strong correlation between probability distributions from the language modeling head and distances between hidden states and token embeddings in pre-trained transformer models, with NDCG scores exceeding 0.98 across different model sizes. This provides compelling evidence that transformer predictions are closely related to proximity in embedding space.
+The proposed framework considers hidden states as points within the embedding space, potentially forming a path from token to token. This perspective may offer an alternative understanding of transformer operations, where each layer could contribute to a trajectory through embedding space.
 
-Second, we demonstrated that this geometric relationship can be explicitly modeled through KNN-based alternatives to the traditional language modeling head. These approaches reduce parameter count by 99.9% while maintaining or improving performance, with our hybrid KNN Head achieving a 2.2% lower validation loss than the standard approach.
+Experimental results suggest several possible insights:
+\begin{itemize}
+    \item Models with weight tying appeared to show alignment between similarity-based rankings and model logits, though the relationship's nature requires further investigation.
+    \item Different language modeling head architectures exhibited relatively similar performance, potentially indicating some degree of robustness.
+    \item Hidden state norms in pre-trained models seemed to increase with layer depth, possibly indicating divergence from the token embedding space.
+    \item A regularization approach appeared to constrain intermediate hidden states without major performance impacts, though its broader implications remain unclear.
+\end{itemize}
 
-Third, we developed a first-layer-only attention mechanism that reduces inference memory requirements by a factor equal to the number of layers while incurring less than 1% performance degradation, offering significant practical benefits for deployment.
+These preliminary findings may support the potential of the proposed framework, though many questions remain unanswered. The ability to train models with representation constraints without apparent performance degradation might suggest directions for more interpretable models.
 
-Our work contributes to the field of transformer interpretability by offering a holistic perspective that connects internal representations to model predictions through geometric properties. While previous approaches have focused on attention patterns \cite{aken2020visbert} or specific components like feed-forward networks \cite{geva2022transformer}, our embedding space movement interpretation provides a unified framework that explains how transformers process information.
-
-Despite promising results, our research has limitations: experiments were conducted on specific models (LLAMA family) and may not generalize to all architectures; KNN-based heads were evaluated on relatively small models (70M parameters); and the first-layer-only attention mechanism might limit capacity for very long sequences.
-
-Future directions include exploring more sophisticated distance metrics, investigating hybrid attention mechanisms, extending our interpretation to other architectures and modalities, and developing visualization tools that leverage our framework.
-
-In conclusion, by reframing transformer operation as movement in embedding space, this thesis contributes to a deeper understanding of these models and offers practical approaches to improve their efficiency. Our findings suggest that geometric properties play a fundamental role in how transformers process information, providing a foundation for more interpretable and efficient architectures.
+Future work could explore this approach with larger models, investigate regularization strategies, and examine the framework's applicability to various transformer architectures.

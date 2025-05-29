@@ -7,8 +7,7 @@ Decoder-only transformer language models form the core architecture behind moder
 \begin{figure}[h]
     \centering
     % Placeholder for transformer schema
-    \includegraphics[height=0.5\textwidth]{images/base_schme_transformer.png}
-    \caption{Illustration of the decoder-only transformer language model architecture (adapted from \cite{for_scheme_base})}
+    \caption{Architecture of a decoder-only transformer model illustrating the processing pipeline: token embeddings are transformed through multiple decoder layers (each containing self-attention and feed-forward networks with residual connections), culminating in the language modeling head that produces next-token predictions.}
     \label{fig:transformer_architecture}
 \end{figure}
 
@@ -40,7 +39,7 @@ where $\mathbf{W}_1$, $\mathbf{W}_2$, $\mathbf{b}_1$, $\mathbf{b}_2$ are learned
 
 The final hidden state $\mathbf{h}_i^L$ is projected to logits over the vocabulary by a linear language modeling head:
 \begin{equation}
-    \text{LmHead}(\mathbf{h}_i^L) = \mathbf{W} \mathbf{h}_i^L + \mathbf{b}
+    \mathbf{z}_i = \text{LmHead}(\mathbf{h}_i^L) = \mathbf{W} \mathbf{h}_i^L + \mathbf{b}
     \label{eq::lm_head}
 \end{equation}
 where $\mathbf{W} \in \mathbb{R}^{|\mathcal{V}| \times d}$ and $\mathbf{b} \in \mathbb{R}^{|\mathcal{V}|}$. The probability of the next token is given by softmax:

@@ -1,17 +1,9 @@
 \chapter{Author contribution}
 
-In this thesis, I have made the following contributions to the research presented:
+The author of this thesis has made several contributions to the research presented:
 
-\begin{itemize}
-    \item \textbf{Conceptualization:} I formulated the novel interpretation of transformer operation as movement in embedding space and developed the theoretical framework that formalizes this interpretation as a trajectory guided by attention mechanisms and feed-forward networks.
-    
-    \item \textbf{Methodology:} I designed approaches to validate this interpretation, including analysis frameworks for embedding distances in pre-trained models, KNN-based alternatives to traditional language modeling heads, and a first-layer-only attention mechanism for efficient inference.
-    
-    \item \textbf{Implementation:} I implemented all necessary code, including modifications to transformer architectures to support KNN-based heads, custom attention mechanisms, and metrics for comparing probability distributions and embedding space properties.
-    
-    \item \textbf{Experimentation:} I conducted experiments analyzing pre-trained LLAMA models (1B-7B) and trained models from scratch with KNN-based heads and modified attention mechanisms to validate my hypotheses.
-    
-    \item \textbf{Analysis:} I analyzed the experimental results, quantifying correlations between embedding distances and probabilities, evaluating parameter efficiency, and assessing memory savings of the proposed architectural modifications.
-\end{itemize}
+The conceptual framework of viewing transformer operations as movement through embedding space was developed by the author, building upon existing literature on transformer architecture and interpretation. This perspective emerged from critical analysis of current approaches that separate token embeddings from hidden states.
 
-This research was conducted under the supervision of Serguei Barannikov. I acknowledge the use of open-source libraries, pre-trained LLAMA models, and the SlimPajama dataset that supported this work.
+The author designed and implemented the analytical methods used to evaluate this interpretative framework, including the similarity metrics between final hidden states and token embeddings, and the visualization techniques for tracking hidden state norms across layers.
+
+The experimental work, including the analysis of pre-trained models and the training of models with specific architectural variations, was conducted by the author. This involved implementing the proposed regularization approach that constrains intermediate hidden states to remain within the token embedding manifold.

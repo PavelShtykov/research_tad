@@ -1,39 +1,21 @@
 \chapter{Introduction}
 
 \paragraph{Relevance.}
-Transformer-based language models have revolutionized natural language processing, yet they largely remain "black boxes" with limited interpretability. Understanding these models is crucial for reliable development, bias mitigation, and architectural innovation. As transformers become integrated into critical applications, interpretability becomes both a technical challenge and ethical necessity. This thesis investigates how transformer models process information, focusing on the geometric properties of embedding spaces and how they relate to model predictions.
+Transformer-based language models have revolutionized natural language processing, yet our understanding of their internal representations remains limited. Current approaches often create an artificial separation between token embeddings and hidden states, hindering interpretability. As these models become increasingly integrated into critical systems, developing better interpretative frameworks is essential for ensuring reliability, enabling systematic debugging, and driving architectural innovations.
 
 \paragraph{Main purpose of the research.}
-This research aims to develop a novel interpretative framework for transformer language models that conceptualizes their operation as movement through embedding space. Specifically, we investigate:
-\begin{itemize}
-    \item The relationship between probability distributions from the language modeling head and distances between hidden states and token embeddings in the vocabulary
-    \item Alternative formulations of the language modeling objective using distance-based approaches instead of traditional linear projections
-    \item A theoretical framework interpreting transformer operation as a trajectory in embedding space, where attention mechanisms and feed-forward networks guide this movement
-    \item Architectural modifications that leverage this interpretation to improve efficiency without sacrificing performance
-\end{itemize}
+This research aims to develop and validate a novel interpretative framework for transformer language models based on the concept of movement through embedding space. The central hypothesis posits that transformer operations can be understood as a trajectory from one token to the next, with each layer contributing to this path. Through analysis of pre-trained models and experiments with models trained under specific constraints, this work investigates whether this embedding space movement paradigm offers a valid perspective for understanding transformer behavior.
 
 \paragraph{Scientific novelty.}
-This research contributes novel elements to transformer interpretability:
-\begin{itemize}
-    \item A comprehensive analysis of the correlation between embedding space distances and probability distributions in pre-trained transformer models, with NDCG scores exceeding 0.98 across different model sizes
-    
-    \item A KNN-based alternative to the traditional language modeling head that reduces parameter count by 99.9\% while maintaining or improving performance
-    
-    \item A first-layer-only attention mechanism that reduces inference memory requirements by a factor equal to the number of layers with minimal impact on performance
-    
-    \item A theoretical framework that reinterprets transformer operation as movement in embedding space, providing an intuitive understanding of how these models process sequential information
-\end{itemize}
-Unlike previous work focusing on attention patterns or isolated components, this research examines the geometric properties of transformer representations and their relationship to model predictions.
+This thesis explores potential contributions to transformer interpretation: (1) a perspective that considers both token embeddings and hidden states as points within the same embedding space; (2) methods to examine this interpretative framework; (3) an experimental regularization approach that attempts to constrain intermediate hidden states within the token embedding manifold; and (4) preliminary evidence from both pre-trained models and models with alternative architectural configurations. While these contributions suggest possible directions for transformer interpretation, they represent initial steps that require further validation and refinement.
 
 \paragraph{Statements for defense.}
-\begin{enumerate}
-    \item Probability distributions from the language modeling head correlate strongly with distances between final hidden states and token embeddings, as evidenced by NDCG scores exceeding 0.98 across different model sizes, suggesting transformers implicitly learn to navigate embedding space.
-    
-    \item Transformers trained with KNN-based heads that explicitly model distances in embedding space can achieve comparable or better performance than traditional linear language modeling heads while using 99.9\% fewer parameters.
-    
-    \item Transformer operation can be effectively conceptualized as movement in embedding space, where each layer contributes to this movement through residual connections, as formalized in our mathematical framework.
-    
-    \item The first-layer-only attention mechanism, inspired by our embedding space movement interpretation, reduces inference memory requirements by a factor equal to the number of layers with less than 1\% impact on performance.
-\end{enumerate}
+The following statements are presented for defense:
 
-Through these contributions, this thesis advances both the theoretical understanding of transformer models and their practical implementation, offering insights that can guide the development of more interpretable and efficient architectures.
+1. The proposed interpretative framework of movement through embedding space offers a valid perspective for understanding transformer language models.
+
+2. In standard pre-trained transformers, intermediate hidden states progressively diverge from the token embedding manifold as layer depth increases.
+
+3. Intermediate hidden states can be constrained to remain within the vicinity of the token embedding cloud through regularization without significant performance degradation.
+
+4. Different language modeling head architectures, including those explicitly based on similarity metrics, can achieve comparable performance.
